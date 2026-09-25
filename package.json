@@ -1,0 +1,29 @@
+{
+  "name": "pmail",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/html-to-text": "^9.0.4",
+    "@types/mailparser": "^3.4.6"
+  },
+  "peerDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "html-to-text": "^10.0.1",
+    "imapflow": "^2.0.6",
+    "mailparser": "^3.9.28",
+    "nodemailer": "^10.0.10"
+  },
+  "bin": {
+    "pmail": "src/cli/main.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p .",
+    "build": "bun build src/cli/main.ts --compile --outfile dist/pmail",
+    "install:bin": "bun run build && install -m 755 dist/pmail ~/.local/bin/pmail"
+  }
+}
