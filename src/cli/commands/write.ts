@@ -5,7 +5,7 @@ import { validationError } from "../../core/errors";
 import { createDraft, moveMessage, setFlags, withImap, type FlagChange } from "../../core/imap";
 import { sendDraft } from "../../core/smtp";
 import { run, type GlobalOpts } from "../output";
-import { collectEmails } from "../validate";
+import { collectEmails, collectPaths, readAttachments } from "../validate";
 
 const examples = (...lines: string[]) => `\nExamples:\n${lines.map((l) => `  ${l}`).join("\n")}`;
 
@@ -26,22 +26,29 @@ export function registerWrite(program: Command) {
     .option("--body <text>", "Body text")
     .option("--body-file <path>", "Read the body from a file, or - for stdin")
     .option("--reply-to <id>", "Make this a reply to that message (threads it and fills to/subject)")
+    .option("--attach <path>", "Attach a local file; repeat for several (25 MB total)", collectPaths, [])
     .addHelpText(
       "after",
       examples(
         'pmail draft --reply-to INBOX/4821 --body "Thanks, Tuesday works."',
         'pmail draft --to alice@example.com --subject "Contract" --body-file ./reply.txt',
         "cat reply.txt | pmail draft --reply-to INBOX/4821 --body-file -",
+        'pmail draft --to alice@example.com --subject "Invoice" --body "Attached." --attach ./invoice.pdf --attach ./receipt.png',
       ),
     )
     .action((o, cmd: Command) =>
       run(cmd.optsWithGlobals<GlobalOpts>(), async () => {
         const body = readBody(o);
+        const attachments = readAttachments(o.attach);
         const cfg = loadConfig();
         const { id } = await withImap(cfg, (c) =>
-          createDraft(c, cfg, { to: o.to, cc: o.cc, subject: o.subject, body, replyTo: o.replyTo }),
+          createDraft(c, cfg, { to: o.to, cc: o.cc, subject: o.subject, body, replyTo: o.replyTo, attachments }),
         );
-        return { draftId: id, next: `Show the draft to the user, then: pmail send ${id}` };
+        return {
+          draftId: id,
+          attachments: attachments.map((a) => ({ filename: a.filename, size: a.content.length })),
+          next: `Show the draft to the user, then: pmail send ${id}`,
+        };
       }),
     );
 

@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, truncateSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ExitCode, PmailError, toPmailError } from "../src/core/errors";
 import { formatId, parseId } from "../src/core/ids";
 import { toSearchObject } from "../src/core/imap";
@@ -6,7 +9,7 @@ import { normalizeSubject, truncate } from "../src/core/parse";
 import { withReplyHeaders } from "../src/core/replies";
 import { confirmationRequired } from "../src/core/smtp";
 import { applyFields } from "../src/cli/output";
-import { collectEmails, parseDate, parseLimit } from "../src/cli/validate";
+import { collectEmails, collectPaths, MAX_ATTACHMENT_BYTES, parseDate, parseLimit, readAttachments } from "../src/cli/validate";
 
 describe("ids", () => {
   test("round-trips simple and nested folders", () => {
@@ -91,6 +94,47 @@ describe("validation", () => {
     const collect = collectEmails("--to");
     expect(collect("b@y.com", collect("a@x.com, c@z.io"))).toEqual(["a@x.com", "c@z.io", "b@y.com"]);
     expect(() => collect("not-an-email")).toThrow(PmailError);
+  });
+});
+
+describe("attachments", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pmail-test-"));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const file = (name: string, content: string | Buffer) => {
+    const path = join(dir, name);
+    writeFileSync(path, content);
+    return path;
+  };
+  const exitCodeOf = (fn: () => unknown) => {
+    try {
+      fn();
+    } catch (e) {
+      return (e as PmailError).exitCode;
+    }
+  };
+
+  test("paths are collected across repeats without splitting on commas", () => {
+    expect(collectPaths("b.png", collectPaths("a, final.pdf"))).toEqual(["a, final.pdf", "b.png"]);
+  });
+
+  test("reads files, named by their basename", () => {
+    const pdf = file("invoice.pdf", Buffer.from([0x25, 0x50, 0x44, 0x46]));
+    expect(readAttachments([pdf, file("notes.txt", "hi")])).toEqual([
+      { filename: "invoice.pdf", content: Buffer.from([0x25, 0x50, 0x44, 0x46]) },
+      { filename: "notes.txt", content: Buffer.from("hi") },
+    ]);
+  });
+
+  test("missing files and directories are invalid input", () => {
+    expect(exitCodeOf(() => readAttachments([join(dir, "nope.pdf")]))).toBe(ExitCode.validation);
+    expect(exitCodeOf(() => readAttachments([dir]))).toBe(ExitCode.validation);
+  });
+
+  test("rejects a total over Proton's 25 MB limit before reading anything", () => {
+    const big = file("big.bin", "");
+    truncateSync(big, MAX_ATTACHMENT_BYTES);
+    expect(readAttachments([big])).toHaveLength(1);
+    expect(exitCodeOf(() => readAttachments([big, file("one-more.txt", "x")]))).toBe(ExitCode.validation);
   });
 });
 

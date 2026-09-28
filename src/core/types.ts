@@ -59,10 +59,16 @@ export interface EnvelopeQuery {
   starred?: boolean;
 }
 
+export interface OutgoingAttachment {
+  filename: string;
+  content: Buffer;
+}
+
 export interface DraftInput {
   to: string[];
   cc: string[];
   subject?: string;
   body: string;
   replyTo?: string;
+  attachments?: OutgoingAttachment[];
 }

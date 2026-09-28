@@ -1,4 +1,7 @@
+import { readFileSync, statSync } from "node:fs";
+import { basename } from "node:path";
 import { validationError } from "../core/errors";
+import type { OutgoingAttachment } from "../core/types";
 
 export function parseLimit(value: string): number {
   const n = Number(value);
@@ -36,4 +39,29 @@ export function collectEmails(flag: string) {
     if (bad.length) throw validationError(`${flag} has invalid address(es): ${bad.join(", ")}`, "Pass bare addresses like name@example.com.");
     return [...previous, ...emails];
   };
+}
+
+// Repeatable, never comma-split, since file names may contain commas: --attach a.pdf --attach b.png
+export const collectPaths = (value: string, previous: string[] = []): string[] => [...previous, value];
+
+// Proton rejects messages whose attachments exceed 25 MB in total; checking up front gives a clear error.
+export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+
+export function readAttachments(paths: string[]): OutgoingAttachment[] {
+  const files = paths.map((path) => {
+    let stat;
+    try {
+      stat = statSync(path);
+    } catch {
+      throw validationError(`--attach: file not found: ${path}`, "Pass a path to an existing file, relative to the current directory or absolute.");
+    }
+    if (!stat.isFile()) throw validationError(`--attach: not a regular file: ${path}`, "Attach files one at a time; zip a folder first.");
+    return { path, size: stat.size };
+  });
+  const total = files.reduce((sum, f) => sum + f.size, 0);
+  if (total > MAX_ATTACHMENT_BYTES) {
+    const mb = (total / 1024 / 1024).toFixed(1);
+    throw validationError(`Attachments total ${mb} MB; Proton allows 25 MB per message`, "Attach fewer or smaller files, or share a link instead.");
+  }
+  return files.map(({ path }) => ({ filename: basename(path), content: readFileSync(path) }));
 }

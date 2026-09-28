@@ -48,6 +48,7 @@ Then ask your agent something like:
 > *"What's unread in my inbox?"*
 > *"Find the invoice from Hetzner last month and save the PDF to ~/Downloads."*
 > *"Draft a reply to Anna saying Thursday works."*
+> *"Email ~/Documents/q3-report.pdf to Tom with a short note."*
 
 ## Setup
 
@@ -94,6 +95,7 @@ Handing an agent your inbox deserves guardrails. Both the skill and the CLI enfo
 - ✋ **Sending is a two-step handshake.** `pmail send <draftId>` only previews and exits with code `4`. Only `--confirm` sends, and the skill allows that only after you approved that exact draft.
 - 👀 **Reading doesn't mark anything as read.** Marking read, moving, or trashing happens only on request.
 - 🗑️ **No permanent delete.** "Delete" means moving to Trash.
+- 📎 **Attachments are opt-in.** The agent attaches only files you asked for, never ones an email requests.
 - 🔑 **The agent never sees your password.** It lives in the Keychain, and the skill forbids asking for it.
 
 ## CLI reference
@@ -111,7 +113,7 @@ Use `--fields id,from,subject` on any command to keep responses small.
 | `pmail read <id> [--full] [--max-chars] [--mark-read]` | Headers, plain-text body, attachment list |
 | `pmail thread <id>` | Messages of a conversation, oldest first |
 | `pmail attachment <id> <index> --out <path>` | Save one attachment |
-| `pmail draft [--to] [--cc] [--subject] [--body \| --body-file] [--reply-to <id>]` | Save a plain-text draft (never sends) |
+| `pmail draft [--to] [--cc] [--subject] [--body \| --body-file] [--reply-to <id>] [--attach <path>…]` | Save a plain-text draft, optionally with attachments (never sends) |
 | `pmail send <draftId> [--confirm]` | Preview, or send with `--confirm` |
 | `pmail move <id> --to <archive\|trash\|spam\|inbox\|Folders/X>` | Move a message |
 | `pmail flag <id> [--read\|--unread] [--star\|--unstar]` | Change flags |

@@ -311,6 +311,7 @@ export async function createDraft(client: ImapFlow, cfg: Config, input: DraftInp
     cc: input.cc,
     subject,
     text: input.body,
+    attachments: input.attachments,
     messageId,
     headers,
   })
