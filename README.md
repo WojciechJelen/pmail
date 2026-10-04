@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" width="320" alt="Pixel-art envelope with AI sparkles and a typing bubble">
+  <img src="assets/logo.svg" width="360" alt="Animated lavender envelope with a floating letter, twinkling stars, and a mint typing bubble">
 </p>
 
 <h1 align="center">proton-mail</h1>
